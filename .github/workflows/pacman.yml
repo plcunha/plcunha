@@ -16,19 +16,39 @@ jobs:
   generate:
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
-      - name: Generate contribution graph
-        uses: abozanona/pacman-contribution-graph@d40fb3b3cc8017d7bfe915391a36c10ceaf274f7 # main
-        with:
-          github_user_name: ${{ github.repository_owner }}
+      - name: Generate light and dark contribution graphs
+        run: |
+          mkdir -p dist
+          npx --yes pacman-contribution-graph@5.3.1 \
+            --game pacman \
+            --platform github \
+            --username "${GITHUB_REPOSITORY_OWNER}" \
+            --gameTheme github \
+            --output dist/pacman-contribution-graph.svg
+          npx --yes pacman-contribution-graph@5.3.1 \
+            --game pacman \
+            --platform github \
+            --username "${GITHUB_REPOSITORY_OWNER}" \
+            --gameTheme github-dark \
+            --output dist/pacman-contribution-graph-dark.svg
+          test -s dist/pacman-contribution-graph.svg
+          test -s dist/pacman-contribution-graph-dark.svg
 
-      - name: Publish contribution graph
-        uses: crazy-max/ghaction-github-pages@c0d7ff0487ee0415efb7f32dab10ea880330b1dd # v3.1.0
-        with:
-          target_branch: output
-          build_dir: dist
+      - name: Publish contribution graphs
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd dist
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b output
+          git add pacman-contribution-graph.svg pacman-contribution-graph-dark.svg
+          git commit -m "chore: update contribution graphs"
+          git push --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            output
